@@ -107,7 +107,7 @@ public class PaxosLeaderElectionService implements PingableLeader, LeaderElectio
         this.leaderPingResponseWaitMs = leaderPingResponseWaitMs;
         lock = new ReentrantLock();
         this.latestRoundVerifier = new BatchingPaxosLatestRoundVerifier(
-                new PaxosLatestRoundVerifierImpl(acceptors, proposer.getQuorumSize()));
+                new PaxosLatestRoundVerifierImpl(acceptors, proposer.getQuorumSize(), executor));
     }
 
     @Override
@@ -378,11 +378,6 @@ public class PaxosLeaderElectionService implements PingableLeader, LeaderElectio
 
     private long latestRoundLearnedLocally() {
         return knowledge.getGreatestLearnedValue().getRound();
-    }
-
-    private boolean isThisNodeTheLastKnownLeader() {
-        PaxosValue lastKnownValue = knowledge.getGreatestLearnedValue();
-        return isThisNodeTheLeaderFor(lastKnownValue);
     }
 
     private boolean isThisNodeTheLeaderFor(PaxosValue value) {
