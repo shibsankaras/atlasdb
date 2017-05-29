@@ -9,6 +9,9 @@ dependencies {
   compile group: "commons-io", name: "commons-io"
   compile group: 'com.palantir.remoting1', name: 'tracing'
 
+  testCompile(group: "org.jmock", name: "jmock", version: libVersions.jmock) {
+    exclude group: 'org.hamcrest'
+  }  
   testCompile group: 'org.mockito', name: 'mockito-core'
   testCompile group: 'org.assertj', name: 'assertj-core'
 }

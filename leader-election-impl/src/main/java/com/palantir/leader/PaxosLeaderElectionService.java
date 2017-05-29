@@ -17,7 +17,6 @@ package com.palantir.leader;
 
 import static com.google.common.collect.ImmutableList.copyOf;
 
-import java.time.Duration;
 import java.util.AbstractMap;
 import java.util.Collections;
 import java.util.List;
@@ -32,9 +31,7 @@ import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Predicate;
 
 import javax.annotation.Nullable;
 
@@ -52,7 +49,6 @@ import com.google.common.net.HostAndPort;
 import com.palantir.common.base.Throwables;
 import com.palantir.paxos.BatchingPaxosLatestRoundVerifier;
 import com.palantir.paxos.PaxosAcceptor;
-import com.palantir.paxos.PaxosLatestRoundVerifier;
 import com.palantir.paxos.PaxosLatestRoundVerifierImpl;
 import com.palantir.paxos.PaxosLearner;
 import com.palantir.paxos.PaxosProposer;
@@ -60,7 +56,6 @@ import com.palantir.paxos.PaxosQuorumChecker;
 import com.palantir.paxos.PaxosRoundFailureException;
 import com.palantir.paxos.PaxosUpdate;
 import com.palantir.paxos.PaxosValue;
-import com.palantir.util.Pair;
 
 /**
  * Implementation of a paxos member than can be a designated proposer (leader) and designated
@@ -73,7 +68,7 @@ public class PaxosLeaderElectionService implements PingableLeader, LeaderElectio
     private static final Logger leaderLog = LoggerFactory.getLogger("leadership");
 
     private final ReentrantLock lock;
-    private final PaxosLatestRoundVerifier latestRoundVerifier;
+    private final BatchingPaxosLatestRoundVerifier latestRoundVerifier;
 
     final PaxosProposer proposer;
     final PaxosLearner knowledge;
@@ -404,7 +399,7 @@ public class PaxosLeaderElectionService implements PingableLeader, LeaderElectio
      * @returns true if new state was learned, otherwise false
      */
     public boolean updateLearnedStateFromPeers(PaxosValue greatestLearned) {
-        final long nextToLearnSeq = getNextSequence(greatestLearned);
+        final long nextToLearnSeq = greatestLearned != null ? greatestLearned.getRound() + 1 : Defaults.defaultValue(long.class);
         List<PaxosUpdate> updates = PaxosQuorumChecker.<PaxosLearner, PaxosUpdate> collectQuorumResponses(
                 learners,
                 new Function<PaxosLearner, PaxosUpdate>() {
@@ -433,9 +428,5 @@ public class PaxosLeaderElectionService implements PingableLeader, LeaderElectio
         }
 
         return learned;
-    }
-
-    private long getNextSequence(PaxosValue value) {
-        return value == null ? 0L : value.getRound() + 1L;
     }
 }
