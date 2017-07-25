@@ -38,7 +38,6 @@ import com.palantir.common.base.ClosableIterator;
 import com.palantir.common.base.ClosableIterators;
 import com.palantir.common.base.ForwardingClosableIterator;
 import com.palantir.common.collect.IteratorUtils;
-import com.palantir.util.Pair;
 
 /* package */ class ClosableMergedIterator<T>
         extends AbstractIterator<RowResult<T>>
@@ -140,28 +139,25 @@ import com.palantir.util.Pair;
                 writeIter,
                 readIter,
                 comparator,
-                new Function<Pair<RowResult<T>, RowResult<T>>, RowResult<T>>() {
-                    @Override
-                    public RowResult<T> apply(Pair<RowResult<T>, RowResult<T>> rows) {
-                        RowResult<T> writeResult = rows.getLhSide();
-                        RowResult<T> readResult = rows.getRhSide();
-                        for (Entry<byte[], T> entry : writeResult.getColumns().entrySet()) {
-                            T readValue = readResult.getColumns().get(entry.getKey());
-                            if (readValue instanceof Value) {
-                                long writeTimestamp = ((Value) entry.getValue()).getTimestamp();
-                                long readTimestamp = ((Value) readValue).getTimestamp();
-                                if (writeTimestamp < readTimestamp) {
-                                    throw new IllegalArgumentException("The read only kvs has a row with timestamp "
-                                            + writeTimestamp
-                                            + ", while the same row in the writing kvs has timestamp. "
-                                            + readTimestamp);
-                                }
+                rows -> {
+                    RowResult<T> writeResult = rows.getLhSide();
+                    RowResult<T> readResult = rows.getRhSide();
+                    for (Entry<byte[], T> entry : writeResult.getColumns().entrySet()) {
+                        T readValue = readResult.getColumns().get(entry.getKey());
+                        if (readValue instanceof Value) {
+                            long writeTimestamp = ((Value) entry.getValue()).getTimestamp();
+                            long readTimestamp = ((Value) readValue).getTimestamp();
+                            if (writeTimestamp < readTimestamp) {
+                                throw new IllegalArgumentException("The read only kvs has a row with timestamp "
+                                        + writeTimestamp
+                                        + ", while the same row in the writing kvs has timestamp. "
+                                        + readTimestamp);
                             }
                         }
-                        // Order is important here, overwrite results from the
-                        // secondary tier with results from the primary tier.
-                        return RowResults.merge(readResult, writeResult);
                     }
+                    // Order is important here, overwrite results from the
+                    // secondary tier with results from the primary tier.
+                    return RowResults.merge(readResult, writeResult);
                 });
     }
 }
